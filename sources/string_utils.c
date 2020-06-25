@@ -30,3 +30,11 @@ char *append(char before, char *str, char after)
     }
     return str;
 }
+
+int get_size(char ** args)
+{
+	int size = 0;
+	while(args[size])
+		size++;
+	return size;
+}
