@@ -6,7 +6,7 @@ char * builtin_str[] = {
 	"help"
 };
 
-int (*builtin_func[]) (char **, int) = {
+int (*builtin_func[]) (char **, int, char *, int *) = {
 	&dumsh_cd,
 	&dumsh_exit,
 	&dumsh_help
@@ -14,6 +14,10 @@ int (*builtin_func[]) (char **, int) = {
 
 void dumsh_loop(void) 
 {
+	char * stderr = malloc(STDERR_BUFF_SIZE * sizeof(char));
+	int stderr_size = STDERR_BUFF_SIZE;
+	int fd = -1;
+
 	char * line;
 	char ** args;
 	int status;
@@ -22,39 +26,71 @@ void dumsh_loop(void)
 
 	do 
 	{
+		int is_redirect = 0;
 		write(1, prompt, strlen(prompt));
 		line = dumsh_read_line();
 		args = dumsh_split_line(line);
 
 		int size = get_size(args);
+		for (int i = 0; i < size; ++i)
+			if(strcmp(args[i], ">1") == 0 && (i + 1) < size)
+			{
+				is_redirect = 1;
+				if (fd < 0)
+					fd = open(args[i + 1], O_WRONLY | O_CREAT | O_APPEND | O_TRUNC, S_IRUSR | S_IWUSR);
+				if (fd < 0)
+					perror("open() error");
+			}
 
-		status = dumsh_execute(args, size);
+		status = dumsh_execute(args, size, stderr, &stderr_size, 
+									(is_redirect || strcmp(args[0], "exit") == 0) 
+									? fd : 1);
 		prompt = dumsh_prompt();
 	} while (status);
-
+	close(fd);
 	free(prompt);
 	free(args);
 	free(line);
+	free(stderr);
 }
 
-int dumsh_help(char ** args, int fd)
+int dumsh_help(char ** args, int fd, char * stderr, int * stderr_size)
 {
-	int filedesc = fd < 0 ? 1 : fd;
-	write(filedesc, "Yaniv Benichou's Dumsh\n", strlen("Yaniv Benichou's Dumsh\n"));
-	write(filedesc, "Type program names and arguments, and hit enter.\n", strlen("Type program names and arguments, and hit enter.\n"));
-	write(filedesc, "The following are built-in:\n", strlen("The following are built-in:\n"));
+	char * lines[] = 
+	{
+		"Yaniv Benichou's Dumsh\n",
+		"Type program names and arguments, and hit enter.\n",
+		"The following are built-in:\n",
+		"Use the man command for information on other programs.\n"
+	};
+
+	write(1, lines[0], strlen(lines[0]));
+	write(1, lines[1], strlen(lines[1]));
+	write(1, lines[2], strlen(lines[2]));
+
+	if(fd > 2)
+	{
+		write(fd, lines[0], strlen(lines[0]));
+		write(fd, lines[1], strlen(lines[1]));
+		write(fd, lines[2], strlen(lines[2]));
+	}
 
 	for (int i = 0; i < dumsh_num_builtins(); ++i)
 	{
-		write(filedesc, " ", strlen(" "));
-		write(filedesc, builtin_str[i], strlen(builtin_str[i]));
-		write(filedesc, "\n", strlen("\n"));
+		write(1, " ", strlen(" "));
+		write(1, builtin_str[i], strlen(builtin_str[i]));
+		write(1, "\n", strlen("\n"));
+
+		if(fd > 2)
+		{
+			write(fd, " ", strlen(" "));
+			write(fd, builtin_str[i], strlen(builtin_str[i]));
+			write(fd, "\n", strlen("\n"));
+		}
 	}
 
-	write(filedesc, "Use the man command for information on other programs.\n", strlen("Use the man command for information on other programs.\n"));
-
-	if (fd > 1)
-		close(fd);
+	write(1, lines[3], strlen(lines[3]));
+	if(fd > 2) 	write(fd, lines[3], strlen(lines[3]));
 
 	return 1;
 }
@@ -82,28 +118,26 @@ int dumsh_launch(char ** args)
 	return 1;
 }
 
-int dumsh_execute(char ** args, int size)
+int dumsh_execute(char ** args, int size, char * stderr, int * stderr_size, int fd)
 {
-	int fd = -1;
 	if (args[0] == NULL)
 		return 1;
 
-	for (int i = 0; i < size; ++i) {
+	/*for (int i = 0; i < size; ++i)
 		if(strcmp(args[i], ">1") == 0 && (i + 1) < size)
 		{
-			fd = open(args[i + 1], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IXUSR);
-			if (fd < 0)
+			*fd = open(args[i + 1], O_WRONLY | O_CREAT | O_APPEND | O_TRUNC, S_IRUSR | S_IWUSR);
+			if (*fd < 0)
 			{
 				perror("open() error");
 				return 1;
 			}
-		}
-	}
+		}*/
 
 
 	for (int i = 0; i < dumsh_num_builtins(); ++i)
 		if (strcmp(args[0], builtin_str[i]) == 0)
-			return (*builtin_func[i])(args, fd);
+			return (*builtin_func[i])(args, fd, stderr, stderr_size);
 	return dumsh_launch(args);
 }
 
@@ -145,18 +179,45 @@ int dumsh_num_builtins(void)
 	return sizeof(builtin_str) / sizeof(char *);
 }
 
-int dumsh_cd(char ** args, int fd)
+int dumsh_cd(char ** args, int fd, char * stderr, int * stderr_size)
 {
-	if (args[1] == NULL)
-		perror("dumsh_cd error");
+	if (args[1] == NULL || strcmp(args[1], ">1") == 0)
+	{
+		char * error = "ERR dumsh_cd: cd need at least one argument\n";
+		write(2, error, strlen(error));
+		if (fd > 2) 
+		{
+			if (strlen(stderr) + strlen(error) >= *stderr_size)
+			{
+				while (strlen(stderr) + strlen(error) >= *stderr_size)
+					*stderr_size += STDERR_BUFF_SIZE;
+				stderr = realloc(stderr, *stderr_size);
+				if(!stderr)
+				{
+					perror("realloc() error");
+					exit(EXIT_FAILURE);
+				}
+
+			}
+			strcat(stderr, error);
+		}
+	}
 	else if (chdir(args[1]) != 0)
 		perror("dumsh_cd error");
 
 	return 1;
 }
 
-int dumsh_exit(char ** args, int fd)
+int dumsh_exit(char ** args, int fd, char * stderr, int * stderr_size)
 {
+	if (fd > 2)
+	{
+		write(fd, "\n", strlen("\n"));
+		for (int i = 0; i < 80; ++i)
+			write(fd, "#", strlen("#"));
+		write(fd, "\n", strlen("\n"));
+		write(fd, stderr, strlen(stderr));
+	}
 	return 0;
 }
 
