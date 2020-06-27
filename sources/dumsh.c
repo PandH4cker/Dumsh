@@ -121,15 +121,18 @@ int dumsh_help(char ** args, int fd, char * stderr, int * stderr_size, int no_re
 	return 1;
 }
 
-int dumsh_launch(char ** args, int fd, char * stderr, int * stderr_size)
+int dumsh_launch(char ** args, int fd, char * stderr, int * stderr_size, int no_redirect, char * err_file)
 {
 	pid_t pid;
 	int status;
 
 	int fd_temp;
 	if(fd > 2)
-	{
-		fd_temp = open("err.tmp", O_WRONLY | O_CREAT | O_APPEND | O_TRUNC, S_IRUSR | S_IWUSR);
+	{	
+		if(err_file == NULL)
+			fd_temp = open("err.tmp", O_WRONLY | O_CREAT | O_APPEND | O_TRUNC, S_IRUSR | S_IWUSR);
+		else
+			fd_temp = open(err_file, O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR);
 		if(fd_temp < 0)
 			perror("open() error");
 	}
@@ -175,7 +178,7 @@ int dumsh_execute(char ** args, char * stderr, int * stderr_size, int fd, int no
 	for (int i = 0; i < dumsh_num_builtins(); ++i)
 		if (strcmp(args[0], builtin_str[i]) == 0)
 			return (*builtin_func[i])(args, fd, stderr, stderr_size, no_redirect, err_file);
-	return dumsh_launch(args, fd, stderr, stderr_size);
+	return dumsh_launch(args, fd, stderr, stderr_size, no_redirect, err_file);
 }
 
 char * dumsh_prompt(void)

@@ -26,6 +26,6 @@ int dumsh_help(char ** args, int fd, char * stderr, int * stderr_size, int no_re
 char * dumsh_read_line(int fd);
 char ** dumsh_split_line(char * line);
 int dumsh_execute(char ** args, char * stderr, int * stderr_size, int fd, int no_redirect, char * err_file);
-int dumsh_launch(char ** args, int fd, char * stderr, int * stderr_size);
+int dumsh_launch(char ** args, int fd, char * stderr, int * stderr_size, int no_redirect, char * err_file);
 
 #endif
