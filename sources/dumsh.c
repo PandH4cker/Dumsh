@@ -29,7 +29,7 @@ void dumsh_loop(void)
 	do 
 	{
 		int is_redirect = 0;
-		write(1, prompt, strlen(prompt));
+		color(BLUE); write(1, prompt, strlen(prompt)); resetColor;
 		line = dumsh_read_line(0);
 		args = dumsh_split_line(line);
 
@@ -90,9 +90,11 @@ int dumsh_help(char ** args, int fd, char * stderr, int * stderr_size, int no_re
 		"Use the man command for information on other programs.\n"
 	};
 
+	color(GREEN);
 	write(1, lines[0], strlen(lines[0]));
 	write(1, lines[1], strlen(lines[1]));
 	write(1, lines[2], strlen(lines[2]));
+	resetColor;
 
 	if(fd > 2)
 	{
@@ -103,9 +105,11 @@ int dumsh_help(char ** args, int fd, char * stderr, int * stderr_size, int no_re
 
 	for (int i = 0; i < dumsh_num_builtins(); ++i)
 	{
+		color(GREEN);
 		write(1, " ", strlen(" "));
 		write(1, builtin_str[i], strlen(builtin_str[i]));
 		write(1, "\n", strlen("\n"));
+		resetColor;
 
 		if(fd > 2)
 		{
@@ -115,7 +119,7 @@ int dumsh_help(char ** args, int fd, char * stderr, int * stderr_size, int no_re
 		}
 	}
 
-	write(1, lines[3], strlen(lines[3]));
+	color(GREEN); write(1, lines[3], strlen(lines[3])); resetColor;
 	if(fd > 2) 	write(fd, lines[3], strlen(lines[3]));
 
 	return 1;
@@ -147,8 +151,10 @@ int dumsh_launch(char ** args, int fd, char * stderr, int * stderr_size, int no_
 			dup2(fd_temp, STDERR_FILENO);
 			close(fd_temp);
 		}
+		color(GREEN);
 		if (execvp(args[0], args) == -1)
 			perror("dumsh_launch() error");
+		resetColor;
 		exit(EXIT_FAILURE);
 	}
 
@@ -224,7 +230,7 @@ int dumsh_cd(char ** args, int fd, char * stderr, int * stderr_size, int no_redi
 	if (args[1] == NULL || strcmp(args[1], ">1") == 0)
 	{
 		char * error = "ERR dumsh_cd: cd need at least one argument\n";
-		write(2, error, strlen(error));
+		color(RED); write(2, error, strlen(error)); resetColor;
 		if (fd > 2 && no_redirect == 1) 
 		{
 			if (strlen(stderr) + strlen(error) >= *stderr_size)
