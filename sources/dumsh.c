@@ -84,7 +84,7 @@ int dumsh_help(char ** args, int fd, char * stderr, int * stderr_size, int no_re
 {
 	char * lines[] = 
 	{
-		"Yaniv Benichou's Dumsh\n",
+		"Raphael Dray's Dumsh\n",
 		"Type program names and arguments, and hit enter.\n",
 		"The following are built-in:\n",
 		"Use the man command for information on other programs.\n"
