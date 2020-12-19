@@ -1,4 +1,4 @@
-# Authors: Yaniv Benichou
+# Authors: Raphael Dray
 
 # Student ID: 
 
