@@ -1,6 +1,6 @@
 # Dumsh
 ---
-## Authors: Yaniv Benichou.
+## Authors: Raphael Dray.
 ---
 > This program launch a shell with built-in commands and which can launch other programs. <br />
 > It can be opened in a **terminal**.
